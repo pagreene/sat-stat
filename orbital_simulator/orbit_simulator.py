@@ -209,7 +209,7 @@ async def get_telescope_readings(telescope_idx: int):
             results.append(sat_position)
             
 
-    return {"results": results, "position": tel.json()}
+    return {"satellites": results, "position": tel.json()}
 
 
 if __name__ == "__main__":

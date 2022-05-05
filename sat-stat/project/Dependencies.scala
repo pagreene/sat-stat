@@ -22,6 +22,7 @@ object Dependencies {
 
     // akka streams
     "com.typesafe.akka" %% "akka-stream" % AkkaVersion,
+    "com.typesafe.akka" %% "akka-actor-typed" % AkkaVersion,
 
     // akka http
     "com.typesafe.akka" %% "akka-http" % AkkaHttpVersion,

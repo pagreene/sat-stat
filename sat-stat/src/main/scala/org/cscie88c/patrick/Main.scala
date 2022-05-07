@@ -26,6 +26,8 @@ import scala.concurrent.duration.DurationInt
 final case class TelescopePosition(id: String, latitude: Float, longitude: Float)
 final case class SatellitePosition(id: String, altitude: Float, latitude: Float, longitude: Float)
 final case class ApiResponse(satellites: List[SatellitePosition], position: TelescopePosition)
+final case class Measurement(telescope_id: String, satellite_id: String,
+                             altitude: Float, latitude: Float, longitude: Float)
 
 object MyJsonProtocol extends DefaultJsonProtocol {
   implicit val telescopePositionFormat: RootJsonFormat[TelescopePosition] = jsonFormat3(TelescopePosition)
@@ -54,8 +56,7 @@ object Main extends App {
                 .convertTo[ApiResponse]
           )
       case notOkResponse =>
-        Source
-          .failed(new RuntimeException(s"Bad response $notOkResponse"))
+        Source.single(ApiResponse(List(), TelescopePosition("nil", 0, 0)))
     }
 
 
@@ -70,19 +71,49 @@ object Main extends App {
       .flatMapConcat(extractEntityData)
   }
 
+  val printSink: Sink[Measurement, Future[Done]] = Sink.foreach(
+    (measure: Measurement) =>
+      println(
+          s"Measurement: ${measure.telescope_id}, ${measure.satellite_id}, (${measure.altitude}, ${measure.latitude}, ${measure.longitude})"
+      )
+  )
+
+  val splitter: Flow[ApiResponse, List[Measurement], NotUsed] = Flow[ApiResponse].map(
+    (resp: ApiResponse) => for {
+      sat <- resp.satellites
+    } yield Measurement(resp.position.id, sat.id, sat.altitude, sat.latitude, sat.longitude)
+  )
+
   val merger = Source.combine(
     formApiSource(0),
     formApiSource(1),
     formApiSource(2),
     formApiSource(3),
-    formApiSource(4)
+    formApiSource(4),
+    formApiSource(5),
+    formApiSource(6),
+    formApiSource(7),
+    formApiSource(8),
+    formApiSource(9),
+    formApiSource(10),
+    formApiSource(11),
+    formApiSource(12),
+    formApiSource(13),
+    formApiSource(14),
+    formApiSource(15),
+    formApiSource(16),
+    formApiSource(17),
+    formApiSource(18),
+    formApiSource(19),
   )(
     Merge(_)
   )
 
   val future: Future[Done] =
     merger
-      .runWith(Sink.foreach(response => println(s"Got the response: ${response.position.toString}")))
+      .via(splitter)
+      .mapConcat(identity)
+      .runWith(printSink)
 
   future.map { _ =>
     println("Done!")

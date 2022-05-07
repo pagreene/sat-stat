@@ -11,6 +11,10 @@ M_EARTH = 5.972e24  # kg
 R_EARTH = 6.371e6  # m
 
 
+def _make_id():
+    return hex(uuid4().fields[-1])[2:].zfill(12)
+
+
 class Orbit:
     """Compute, track, and evolve the orbit of a body surrounding the Earth.
 
@@ -37,7 +41,7 @@ class Orbit:
     """
 
     def __init__(self, object_mass: float, r_min: float, w_max: float, th_0: float):
-        self.id = f"sat_{uuid4()}"
+        self.id = f"sat_{_make_id()}"
         self.mass = object_mass
 
         # Calculate physical parameters for the orbit.
@@ -108,6 +112,10 @@ class Orbit:
         """Run a simulation for the given duration, with the given time steps."""
         t = 0
         self._running = True
+        if self.epsilon > 1:
+            print(f"Satellite {self.id} will escape: not simulating.")
+            return
+
         print(f"Starting satellite {self.id}")
         while self._running:
             # Compute the current position.
@@ -139,6 +147,10 @@ class Orbit:
             self.latitude = latitude * 180 / np.pi
             self.longitude = longitude * 180 / np.pi
 
+            if self.height < R_EARTH:
+                print(f"{self.id} died at {t}: ({self.latitude}, {self.longitude})!")
+                self._running = False
+
             t += dt
             sleep(dt - 0.05 * dt)
 
@@ -154,23 +166,28 @@ class Orbit:
         return self.height, self.latitude, self.longitude
 
 
-NOISE = 0.001
+NOISE = 0.005
 
 
 def noisy(value):
-    return value + value*NOISE*np.random.normal()
+    return value + value * NOISE * np.random.normal()
 
 
 class Telescope:
     def __init__(self, latitude: float, longitude: float):
-        self.id = f"tel_{uuid4()}"
+        self.id = f"tel_{_make_id()}"
         self.latitude = latitude
         self.longitude = longitude
 
     def read(self, satellite: Orbit) -> Optional[dict]:
         h, lat, long = satellite.get_current()
-        if np.abs(self.latitude - lat) < 10 and np.abs(self.longitude - long) < 10:
-            return {"id": satellite.id, "altitude": noisy(h), "latitude": noisy(lat), "longitude": noisy(long)}
+        if np.abs(self.latitude - lat) < 20 and np.abs(self.longitude - long) < 20:
+            return {
+                "id": satellite.id,
+                "altitude": noisy(h),
+                "latitude": noisy(lat),
+                "longitude": noisy(long),
+            }
 
     def json(self):
         return {"id": self.id, "latitude": self.latitude, "longitude": self.longitude}
@@ -178,11 +195,11 @@ class Telescope:
 
 # Start the satellites.
 satellites = []
-for _ in range(100):
+for _ in range(1000):
     m = 100 * (1 + 2 * np.random.normal())
-    r = 8e6 * (1 + 0.2 * np.random.normal())
+    r = R_EARTH * (3 + 1 * np.random.normal())
     th_0 = 2 * np.pi * np.random.rand()
-    w = np.sqrt(G * M_EARTH / r ** 3) * (1.05 + 0.1 * np.random.normal())
+    w = np.sqrt(G * M_EARTH / r ** 3) * (1.0 + 0.1 * np.random.normal())
     orbit = Orbit(m, r, w, th_0)
     orbit.run_async(5)
     satellites.append(orbit)
@@ -204,10 +221,16 @@ async def get_telescope_readings(telescope_idx: int):
     print(f"Getting readings from telescope {telescope_idx}")
     tel = telescopes[telescope_idx]
     results = []
+    n_alive = 0
     for sat in satellites:
+        if sat.height and sat.height >= R_EARTH:
+            n_alive += 1
+        else:
+            continue
+
         if sat_position := tel.read(sat):
             results.append(sat_position)
-            
+    print(f"Found {n_alive} satellites, and {len(results)} visible.")
 
     return {"satellites": results, "position": tel.json()}
 

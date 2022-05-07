@@ -21,6 +21,7 @@ import spray.json._
 import DefaultJsonProtocol._
 
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
 final case class TelescopePosition(id: String, latitude: Float, longitude: Float)
 final case class SatellitePosition(id: String, altitude: Float, latitude: Float, longitude: Float)
@@ -52,7 +53,7 @@ object Main extends App {
           .dataBytes
           .map[ApiResponse](rawBytes =>
               rawBytes
-                .toString()
+                .utf8String
                 .parseJson
                 .convertTo[ApiResponse]
           )
@@ -63,10 +64,10 @@ object Main extends App {
 
   val future: Future[Done] =
     Source
-      .single(httpRequest)
+      .tick(1.seconds, 5.seconds, httpRequest)
       .mapAsync(1)(Http()(actorSystem.toClassic).singleRequest(_))
       .flatMapConcat(extractEntityData)
-      .runWith(Sink.foreach(response => println(s"Got the response: ${response.position}")))
+      .runWith(Sink.foreach(response => println(s"Got the response: ${response.position.toString}")))
 
   future.map { _ =>
     println("Done!")

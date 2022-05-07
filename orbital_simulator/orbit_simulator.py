@@ -119,7 +119,7 @@ class Orbit:
         print(f"Starting satellite {self.id}")
         while self._running:
             # Compute the current position.
-            self.step(dt)
+            self.step(5*dt)
             position = np.array(
                 [
                     self.r_current * np.cos(self.th_current),
@@ -152,7 +152,7 @@ class Orbit:
                 self._running = False
 
             t += dt
-            sleep(dt - 0.05 * dt)
+            sleep(dt)
 
     def run_async(self, dt: float):
         th = Thread(target=self.run, args=(dt,), daemon=True)
@@ -195,7 +195,7 @@ class Telescope:
 
 # Start the satellites.
 satellites = []
-for _ in range(1000):
+for _ in range(5000):
     m = 100 * (1 + 2 * np.random.normal())
     r = R_EARTH * (3 + 1 * np.random.normal())
     th_0 = 2 * np.pi * np.random.rand()
@@ -208,7 +208,7 @@ for _ in range(1000):
 # Place the telescopes.
 telescopes = [
     Telescope(0 + 15 * np.random.normal(), 360 * np.random.rand() - 180)
-    for _ in range(10)
+    for _ in range(20)
 ]
 
 
@@ -231,7 +231,6 @@ async def get_telescope_readings(telescope_idx: int):
         if sat_position := tel.read(sat):
             results.append(sat_position)
     print(f"Found {n_alive} satellites, and {len(results)} visible.")
-
     return {"satellites": results, "position": tel.json()}
 
 

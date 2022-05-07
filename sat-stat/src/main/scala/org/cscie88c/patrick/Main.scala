@@ -14,7 +14,7 @@ import akka.http.scaladsl._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, MediaRanges}
-import akka.stream.scaladsl.{Sink, Source, Flow}
+import akka.stream.scaladsl.{Sink, Source, Flow, Merge}
 import akka.util.ByteString
 
 import spray.json._
@@ -42,11 +42,7 @@ object Main extends App {
 
   import actorSystem.executionContext
 
-  val httpRequest =
-    HttpRequest(uri = "http://localhost:8333/telescope/0")
-      .withHeaders(Accept(MediaRanges.`text/*`))
-
-  def extractEntityData(response: HttpResponse): Source[ApiResponse, _] =
+  private def extractEntityData(response: HttpResponse): Source[ApiResponse, _] =
     response match {
       case HttpResponse(OK, _, entity, _) =>
         entity
@@ -58,15 +54,34 @@ object Main extends App {
                 .convertTo[ApiResponse]
           )
       case notOkResponse =>
-        Source.failed(new RuntimeException(s"Bad response $notOkResponse"))
+        Source
+          .failed(new RuntimeException(s"Bad response $notOkResponse"))
     }
 
 
-  val future: Future[Done] =
+  private def formApiSource(channel: Integer): Source[ApiResponse, _] = {
+    val httpRequest =
+      HttpRequest(uri = s"http://localhost:8333/telescope/$channel")
+        .withHeaders(Accept(MediaRanges.`text/*`))
+
     Source
       .tick(1.seconds, 5.seconds, httpRequest)
       .mapAsync(1)(Http()(actorSystem.toClassic).singleRequest(_))
       .flatMapConcat(extractEntityData)
+  }
+
+  val merger = Source.combine(
+    formApiSource(0),
+    formApiSource(1),
+    formApiSource(2),
+    formApiSource(3),
+    formApiSource(4)
+  )(
+    Merge(_)
+  )
+
+  val future: Future[Done] =
+    merger
       .runWith(Sink.foreach(response => println(s"Got the response: ${response.position.toString}")))
 
   future.map { _ =>

@@ -14,14 +14,13 @@ import akka.http.scaladsl._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, MediaRanges}
-import akka.stream.scaladsl.{Sink, Source, Flow, Merge}
-import akka.util.ByteString
-
+import akka.stream.scaladsl.{Flow, Merge, Sink, Source}
 import spray.json._
-import DefaultJsonProtocol._
 
+import java.nio.charset.StandardCharsets
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
+import java.nio.file.{Files, Paths}
 
 final case class Coordinate(latitude: Float, longitude: Float)
 final case class TelescopePosition(id: String, coordinate: Coordinate)
@@ -30,6 +29,32 @@ final case class ApiResponse(time: Float, satellites: List[SatellitePosition],
                              telescope: TelescopePosition)
 final case class Measurement(time: Float, telescope_id: String, satellite_id: String,
                              altitude: Float, coordinate: Coordinate)
+
+final case class CollisionFile(time_range: String, latitude_range: String, longitude_range: String,
+                               altitude_range: String) {
+  val fileName: String = s"results/collisions/${time_range}_${latitude_range}_${longitude_range}_$altitude_range.csv"
+}
+
+object CollisionFile {
+  private def round(value: Float, toTheNearest: Float): Float = math.round(value / toTheNearest) * toTheNearest
+
+  private def windowedSequence(value: Float, window: Float, unitLabel: String): Seq[String] = {
+    val core = round(value, window)
+    val centers = for {
+      shift <- Seq(-window/2, 0, window/2)
+    } yield (core + shift).toInt
+
+    centers.map(c => f"${c - window/2}%1.1f$unitLabel-${c + window/2}%1.1f$unitLabel")
+  }
+
+  def seqFromMeasurement(measurement: Measurement): Seq[CollisionFile] =
+    for {
+      t <- windowedSequence(measurement.time, 60, "s")  // seconds
+      lat <- windowedSequence(measurement.coordinate.latitude, 1, "deg")  // degrees
+      long <- windowedSequence(measurement.coordinate.longitude, 1, "deg")  // degrees
+      alt <- windowedSequence(measurement.altitude, 100, "m")  // meters
+    } yield CollisionFile(t, lat, long, alt)
+}
 
 object MyJsonProtocol extends DefaultJsonProtocol {
   implicit val coordinateFormat: RootJsonFormat[Coordinate] =
@@ -146,6 +171,30 @@ object Main extends App {
     findCrashingSatellites
       .to(printCrashedSatellite)
 
+  val separateFiles: Flow[Measurement, List[(CollisionFile, String)], NotUsed] =
+    Flow[Measurement].map(
+      (m: Measurement) => for {
+        collisionFile <- CollisionFile.seqFromMeasurement(m).toList
+      } yield (
+        collisionFile,
+        s"${m.satellite_id}, ${m.altitude}, ${m.coordinate.latitude}"
+      )
+    )
+
+  val groupFlow = Flow[Measurement]
+    .via(separateFiles)
+    .mapConcat(identity)
+
+  val fileSink: Sink[(CollisionFile, String), Future[Done]] = Sink
+   .foreach(
+     (tup: (CollisionFile, String)) => {
+       Files.write(Paths.get(tup._1.fileName), tup._2.getBytes(StandardCharsets.UTF_8))
+
+     }
+   )
+
+  val groupSink = groupFlow.to(fileSink)
+
   val measurementSource =
     merger
       .via(separateMeasurements)
@@ -153,17 +202,7 @@ object Main extends App {
 
   measurementSource
     .alsoTo(crashSink)
-    .to(printMeasurementSink)
-
-  val future: Future[Done] =
-    merger
-      .via(separateMeasurements)
-      .mapConcat(identity)
-      .runWith(printMeasurementSink)
-
-  future.map { _ =>
-    println("Done!")
-    actorSystem.terminate()
-  }
+    .alsoTo(groupSink)
+    .to(printMeasurementSink).run()
 
 }

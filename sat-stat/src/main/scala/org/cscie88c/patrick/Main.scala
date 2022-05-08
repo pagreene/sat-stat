@@ -176,7 +176,7 @@ object Main extends App {
         collisionFile <- CollisionFile.seqFromMeasurement(m).toList
       } yield (
         collisionFile,
-        s"${m.satellite_id}, ${m.altitude}, ${m.coordinate.latitude}"
+        s"${m.satellite_id}, ${m.altitude}, ${m.coordinate.latitude}, ${m.coordinate.longitude}"
       )
     )
 

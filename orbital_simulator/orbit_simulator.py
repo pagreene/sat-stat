@@ -1,9 +1,12 @@
+from datetime import datetime
 from threading import Thread
 from time import sleep
 from uuid import uuid4
 
+from pydantic import BaseModel
+
 from fastapi import FastAPI
-from typing import Optional
+from typing import Optional, List
 import numpy as np
 
 G = 6.67430e-11  # N m^2 / kg^2  or  m^3 / (kg s^2)
@@ -15,7 +18,29 @@ def _make_id():
     return hex(uuid4().fields[-1])[2:].zfill(12)
 
 
-class Orbit:
+class Coordinate(BaseModel):
+    latitude: float
+    longitude: float
+
+    def __sub__(self, other: "Coordinate"):
+        if isinstance(other, Coordinate):
+            return np.sqrt(
+                (self.latitude - other.latitude) ** 2
+                + (self.longitude - other.longitude) ** 2
+            )
+        else:
+            raise ValueError(
+                f"Cannot perform subtraction between type {type(other)} and Coordinate."
+            )
+
+
+class SatelliteReading(BaseModel):
+    id: str
+    coordinate: Coordinate
+    altitude: float
+
+
+class SatelliteSimulation:
     """Compute, track, and evolve the orbit of a body surrounding the Earth.
 
     The shape of the orbit is determined by input parameters, but the orientation of the orbit is selected at random
@@ -119,7 +144,7 @@ class Orbit:
         print(f"Starting satellite {self.id}")
         while self._running:
             # Compute the current position.
-            self.step(5*dt)
+            self.step(5 * dt)
             position = np.array(
                 [
                     self.r_current * np.cos(self.th_current),
@@ -162,8 +187,15 @@ class Orbit:
         self._running = False
         self._thread.join()
 
-    def get_current(self):
-        return self.height, self.latitude, self.longitude
+    def get_current(self) -> SatelliteReading:
+        return SatelliteReading(
+            id=self.id,
+            altitude=self.height - R_EARTH,
+            coordinate=Coordinate(
+                latitude=self.latitude,
+                longitude=self.longitude,
+            )
+        )
 
 
 NOISE = 0.005
@@ -173,24 +205,28 @@ def noisy(value):
     return value + value * NOISE * np.random.normal()
 
 
-class Telescope:
-    def __init__(self, latitude: float, longitude: float):
-        self.id = f"tel_{_make_id()}"
-        self.latitude = latitude
-        self.longitude = longitude
+class Telescope(BaseModel):
+    id: str
+    coordinate: Coordinate
 
-    def read(self, satellite: Orbit) -> Optional[dict]:
-        h, lat, long = satellite.get_current()
-        if np.abs(self.latitude - lat) < 20 and np.abs(self.longitude - long) < 20:
-            return {
-                "id": satellite.id,
-                "altitude": noisy(h),
-                "latitude": noisy(lat),
-                "longitude": noisy(long),
-            }
+    @classmethod
+    def from_coord(cls, latitude: float, longitude: float):
+        return cls(
+            id=f"tel_{_make_id()}",
+            coordinate=Coordinate(latitude=latitude, longitude=longitude),
+        )
 
-    def json(self):
-        return {"id": self.id, "latitude": self.latitude, "longitude": self.longitude}
+    def read(self, satellite: SatelliteSimulation) -> Optional[SatelliteReading]:
+        reading = satellite.get_current()
+        diff = self.coordinate - reading.coordinate
+        if diff < 20:
+            return reading
+
+
+class TelescopeResults(BaseModel):
+    time: float
+    telescope: Telescope
+    satellites: List[SatelliteReading]
 
 
 # Start the satellites.
@@ -200,14 +236,14 @@ for _ in range(5000):
     r = R_EARTH * (3 + 1 * np.random.normal())
     th_0 = 2 * np.pi * np.random.rand()
     w = np.sqrt(G * M_EARTH / r ** 3) * (1.0 + 0.1 * np.random.normal())
-    orbit = Orbit(m, r, w, th_0)
+    orbit = SatelliteSimulation(m, r, w, th_0)
     orbit.run_async(5)
     satellites.append(orbit)
 
 
 # Place the telescopes.
 telescopes = [
-    Telescope(0 + 15 * np.random.normal(), 360 * np.random.rand() - 180)
+    Telescope.from_coord(0 + 15 * np.random.normal(), 360 * np.random.rand() - 180)
     for _ in range(20)
 ]
 
@@ -216,11 +252,11 @@ telescopes = [
 app = FastAPI()
 
 
-@app.get("/telescope/{telescope_idx}")
+@app.get("/telescope/{telescope_idx}", response_model=TelescopeResults)
 async def get_telescope_readings(telescope_idx: int):
     print(f"Getting readings from telescope {telescope_idx}")
-    tel = telescopes[telescope_idx]
-    results = []
+    telescope = telescopes[telescope_idx]
+    readings = []
     n_alive = 0
     for sat in satellites:
         if sat.height and sat.height >= R_EARTH:
@@ -228,10 +264,12 @@ async def get_telescope_readings(telescope_idx: int):
         else:
             continue
 
-        if sat_position := tel.read(sat):
-            results.append(sat_position)
-    print(f"Found {n_alive} satellites, and {len(results)} visible.")
-    return {"satellites": results, "position": tel.json()}
+        if sat_position := telescope.read(sat):
+            readings.append(sat_position)
+    print(f"Found {n_alive} satellites, and {len(readings)} visible.")
+    return TelescopeResults(
+        time=datetime.now().timestamp(), telescope=telescope, satellites=readings
+    )
 
 
 if __name__ == "__main__":

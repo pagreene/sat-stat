@@ -95,7 +95,7 @@ object Main extends App {
       println(s"CRASH of ${satellite.id}: ${satellite.coordinate}")
   )
 
-  val splitter: Flow[ApiResponse, List[Measurement], NotUsed] = Flow[ApiResponse].map(
+  val separateMeasurements: Flow[ApiResponse, List[Measurement], NotUsed] = Flow[ApiResponse].map(
     (resp: ApiResponse) => for {
       sat <- resp.satellites
     } yield Measurement(
@@ -134,7 +134,7 @@ object Main extends App {
 
   val ATMOSPHERIC_HEIGHT = 12e3
 
-  val groupSatellites: Flow[Measurement, SatellitePosition, NotUsed] =
+  val findCrashingSatellites: Flow[Measurement, SatellitePosition, NotUsed] =
     Flow[Measurement]
       .filter(_.altitude < ATMOSPHERIC_HEIGHT)
       .map(
@@ -142,15 +142,22 @@ object Main extends App {
           SatellitePosition(m.satellite_id, m.altitude, m.coordinate)
       )
 
-  val measurementSource = merger.via(splitter).mapConcat(identity)
-  measurementSource
-    .alsoTo(groupSatellites.to(printCrashedSatellite))
-    .to(printMeasurementSink)
+  val crashSink: Sink[Measurement, NotUsed] =
+    findCrashingSatellites
+      .to(printCrashedSatellite)
 
+  val measurementSource =
+    merger
+      .via(separateMeasurements)
+      .mapConcat(identity)
+
+  measurementSource
+    .alsoTo(crashSink)
+    .to(printMeasurementSink)
 
   val future: Future[Done] =
     merger
-      .via(splitter)
+      .via(separateMeasurements)
       .mapConcat(identity)
       .runWith(printMeasurementSink)
 

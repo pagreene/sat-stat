@@ -23,16 +23,23 @@ import DefaultJsonProtocol._
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-final case class TelescopePosition(id: String, latitude: Float, longitude: Float)
-final case class SatellitePosition(id: String, altitude: Float, latitude: Float, longitude: Float)
-final case class ApiResponse(satellites: List[SatellitePosition], position: TelescopePosition)
-final case class Measurement(telescope_id: String, satellite_id: String,
-                             altitude: Float, latitude: Float, longitude: Float)
+final case class Coordinate(latitude: Float, longitude: Float)
+final case class TelescopePosition(id: String, coordinate: Coordinate)
+final case class SatellitePosition(id: String, altitude: Float, coordinate: Coordinate)
+final case class ApiResponse(time: Float, satellites: List[SatellitePosition],
+                             telescope: TelescopePosition)
+final case class Measurement(time: Float, telescope_id: String, satellite_id: String,
+                             altitude: Float, coordinate: Coordinate)
 
 object MyJsonProtocol extends DefaultJsonProtocol {
-  implicit val telescopePositionFormat: RootJsonFormat[TelescopePosition] = jsonFormat3(TelescopePosition)
-  implicit val satellitePositionFormat: RootJsonFormat[SatellitePosition] = jsonFormat4(SatellitePosition)
-  implicit val apiResponseFormat: RootJsonFormat[ApiResponse] = jsonFormat2(ApiResponse)
+  implicit val coordinateFormat: RootJsonFormat[Coordinate] =
+    jsonFormat2(Coordinate)
+  implicit val telescopePositionFormat: RootJsonFormat[TelescopePosition] =
+    jsonFormat2(TelescopePosition)
+  implicit val satellitePositionFormat: RootJsonFormat[SatellitePosition] =
+    jsonFormat3(SatellitePosition)
+  implicit val apiResponseFormat: RootJsonFormat[ApiResponse] =
+    jsonFormat3(ApiResponse)
 }
 
 import MyJsonProtocol._
@@ -40,7 +47,8 @@ import MyJsonProtocol._
 object Main extends App {
   println("Hello! Let's get some stats on some sats.")
 
-  implicit val actorSystem: ActorSystem[Nothing] = ActorSystem[Nothing](Behaviors.empty, "sat-stat")
+  implicit val actorSystem: ActorSystem[Nothing] =
+    ActorSystem[Nothing](Behaviors.empty, "sat-stat")
 
   import actorSystem.executionContext
 
@@ -56,7 +64,7 @@ object Main extends App {
                 .convertTo[ApiResponse]
           )
       case notOkResponse =>
-        Source.single(ApiResponse(List(), TelescopePosition("nil", 0, 0)))
+        Source.single(ApiResponse(-1, List(), TelescopePosition("nil", Coordinate(0, 0))))
     }
 
 
@@ -71,17 +79,32 @@ object Main extends App {
       .flatMapConcat(extractEntityData)
   }
 
-  val printSink: Sink[Measurement, Future[Done]] = Sink.foreach(
+  val printMeasurementSink: Sink[Measurement, Future[Done]] = Sink.foreach(
     (measure: Measurement) =>
       println(
-          s"Measurement: ${measure.telescope_id}, ${measure.satellite_id}, (${measure.altitude}, ${measure.latitude}, ${measure.longitude})"
+          s"Measurement: ${measure.telescope_id}, " +
+            s"${measure.satellite_id}, " +
+            s"(${measure.altitude}, " +
+            s"${measure.coordinate.latitude}, " +
+            s"${measure.coordinate.longitude})"
       )
+  )
+
+  val printCrashedSatellite: Sink[SatellitePosition, Future[Done]] = Sink.foreach(
+    (satellite: SatellitePosition) =>
+      println(s"CRASH of ${satellite.id}: ${satellite.coordinate}")
   )
 
   val splitter: Flow[ApiResponse, List[Measurement], NotUsed] = Flow[ApiResponse].map(
     (resp: ApiResponse) => for {
       sat <- resp.satellites
-    } yield Measurement(resp.position.id, sat.id, sat.altitude, sat.latitude, sat.longitude)
+    } yield Measurement(
+      resp.time,
+      resp.telescope.id,
+      sat.id,
+      sat.altitude,
+      sat.coordinate
+    )
   )
 
   val merger = Source.combine(
@@ -109,11 +132,27 @@ object Main extends App {
     Merge(_)
   )
 
+  val ATMOSPHERIC_HEIGHT = 12e3
+
+  val groupSatellites: Flow[Measurement, SatellitePosition, NotUsed] =
+    Flow[Measurement]
+      .filter(_.altitude < ATMOSPHERIC_HEIGHT)
+      .map(
+        (m: Measurement) =>
+          SatellitePosition(m.satellite_id, m.altitude, m.coordinate)
+      )
+
+  val measurementSource = merger.via(splitter).mapConcat(identity)
+  measurementSource
+    .alsoTo(groupSatellites.to(printCrashedSatellite))
+    .to(printMeasurementSink)
+
+
   val future: Future[Done] =
     merger
       .via(splitter)
       .mapConcat(identity)
-      .runWith(printSink)
+      .runWith(printMeasurementSink)
 
   future.map { _ =>
     println("Done!")

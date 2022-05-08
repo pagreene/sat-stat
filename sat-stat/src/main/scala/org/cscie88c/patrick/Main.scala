@@ -20,8 +20,9 @@ import spray.json._
 import java.nio.charset.StandardCharsets
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Paths, StandardOpenOption}
 
+// --------------------------------------------------------------------------
 // CASE CLASSES //
 
 final case class Coordinate(latitude: Float, longitude: Float)
@@ -59,6 +60,7 @@ object CollisionFile {
 }
 
 
+// --------------------------------------------------------------------------
 // JSON CONVERSION //
 
 
@@ -77,6 +79,7 @@ import MyJsonProtocol._
 
 object Main extends App {
 
+  // --------------------------------------------------------------------------
   // CONSTANTS //
 
   val ATMOSPHERIC_HEIGHT = 12e3 // meters
@@ -84,6 +87,7 @@ object Main extends App {
   implicit val actorSystem: ActorSystem[Nothing] =
     ActorSystem[Nothing](Behaviors.empty, "sat-stat")
 
+  // --------------------------------------------------------------------------
   // FUNCTIONS //
 
   private def extractEntityData(response: HttpResponse): Source[ApiResponse, _] =
@@ -113,6 +117,7 @@ object Main extends App {
       .flatMapConcat(extractEntityData)
   }
 
+  // --------------------------------------------------------------------------
   // SOURCES //
 
   val merger: Source[ApiResponse, NotUsed] =
@@ -142,6 +147,7 @@ object Main extends App {
         Merge(_)
       )
 
+  // --------------------------------------------------------------------------
   // FLOWS //
 
   val separateMeasurements: Flow[ApiResponse, List[Measurement], NotUsed] = Flow[ApiResponse].map(
@@ -178,32 +184,47 @@ object Main extends App {
     .via(separateFiles)
     .mapConcat(identity)
 
+  // --------------------------------------------------------------------------
   // SINKS //
 
   val rawMeasurementSink: Sink[Measurement, Future[Done]] = Sink.foreach(
-    (measure: Measurement) =>
-      println(
-        s"Measurement: ${measure.telescope_id}, " +
-          s"${measure.satellite_id}, " +
-          s"(${measure.altitude}, " +
-          s"${measure.coordinate.latitude}, " +
-          s"${measure.coordinate.longitude})"
+    (m: Measurement) => {
+      val line = s"${m.telescope_id}, ${m.satellite_id}, ${m.altitude}, " +
+        s"${m.coordinate.latitude}, ${m.coordinate.longitude}\n"
+      Files.write(
+        Paths.get("results/raw_measurements.csv"),
+        line.getBytes(StandardCharsets.UTF_8),
+        StandardOpenOption.CREATE,
+        StandardOpenOption.APPEND
       )
+    }
   )
 
   val crashSink: Sink[SatellitePosition, Future[Done]] = Sink.foreach(
-    (satellite: SatellitePosition) =>
-      println(s"CRASH of ${satellite.id}: ${satellite.coordinate}")
+    (satellite: SatellitePosition) => {
+      val line = s"${satellite.id}, ${satellite.coordinate.latitude}, ${satellite.coordinate.longitude}\n"
+      Files.write(
+        Paths.get("results/crashes.csv"),
+        line.getBytes(StandardCharsets.UTF_8),
+        StandardOpenOption.CREATE,
+        StandardOpenOption.APPEND
+      )
+    }
   )
 
   val collisionSink: Sink[(CollisionFile, String), Future[Done]] = Sink
     .foreach(
       (tup: (CollisionFile, String)) => {
-        Files.write(Paths.get(tup._1.fileName), tup._2.getBytes(StandardCharsets.UTF_8))
-
+        Files.write(
+          Paths.get(tup._1.fileName),
+          tup._2.getBytes(StandardCharsets.UTF_8),
+          StandardOpenOption.CREATE,
+          StandardOpenOption.APPEND
+        )
       }
     )
 
+  // --------------------------------------------------------------------------
   // STREAMS //
 
   val crashStream: Sink[Measurement, NotUsed] =
@@ -214,6 +235,7 @@ object Main extends App {
     collisionGroupFlow
       .to(collisionSink)
 
+  // --------------------------------------------------------------------------
   // PIPELINE //
 
   merger

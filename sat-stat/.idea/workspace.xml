@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="82cf11f1-250b-46a9-86ce-47260767342a" name="Changes" comment="Refactor to place results in files.">
+      <change beforePath="$PROJECT_DIR$/src/main/scala/org/cscie88c/patrick/Main.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/org/cscie88c/patrick/Main.scala" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CodeStyleSettingsInfer">
+    <option name="done" value="true" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitSEFilterConfiguration">
+    <file-type-list>
+      <filtered-out-file-type name="LOCAL_BRANCH" />
+      <filtered-out-file-type name="REMOTE_BRANCH" />
+      <filtered-out-file-type name="TAG" />
+      <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
+    </file-type-list>
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="2" />
+  </component>
+  <component name="ProjectId" id="28iu30j9l8cuLUtxVODXZXZkjCS" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_directory_selection" value="$PROJECT_DIR$/src/main/scala" />
+    <property name="project.structure.last.edited" value="Modules" />
+    <property name="project.structure.proportion" value="0.15" />
+    <property name="project.structure.side.proportion" value="0.2" />
+    <property name="settings.editor.selected.configurable" value="org.jetbrains.plugins.scala.compiler.ScalaCompileServerForm" />
+  </component>
+  <component name="RunManager" selected="Application.Main">
+    <configuration name="Main" type="Application" factoryName="Application" temporary="true">
+      <option name="ALTERNATIVE_JRE_PATH" value="11" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+      <option name="MAIN_CLASS_NAME" value="org.cscie88c.patrick.Main" />
+      <module name="sat-stat" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="org.cscie88c.patrick.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run sat stat" type="SbtRunConfiguration" factoryName="sbt Task" show_console_on_std_err="false" show_console_on_std_out="false">
+      <option name="allowRunningInParallel" value="false" />
+      <option name="projectPathOnTarget" />
+      <option name="selectedOptions">
+        <list />
+      </option>
+      <option name="tasks" value="run" />
+      <option name="useSbtShell" value="true" />
+      <option name="vmparams" value="-Xms512M -Xmx1024M -Xss1M -XX:+CMSClassUnloadingEnabled" />
+      <option name="workingDir" value="$PROJECT_DIR$" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="sbt Task.run sat stat" />
+      <item itemvalue="Application.Main" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.Main" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="82cf11f1-250b-46a9-86ce-47260767342a" name="Changes" comment="" />
+      <created>1651711524357</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1651711524357</updated>
+    </task>
+    <task id="LOCAL-00001" summary="Fix request parsing.">
+      <created>1651885452303</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1651885452303</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Implement planned merge strategy.&#10;&#10;Note: this is proving less effective than expected.&#10;Specifically, I cannot programmatically select the&#10;number of sources. I think I will need to re-evaluate&#10;my strategy.">
+      <created>1651888746705</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1651888746705</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Flatten the records by into one for each satellite.">
+      <created>1651955340859</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1651955340859</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Implement branch in the akka stream.">
+      <created>1651972321960</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1651972321960</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Clean up the naming.">
+      <created>1651985460233</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1651985460233</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Implement collision file grouping.">
+      <created>1652031108857</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1652031108857</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Implement collision file grouping.">
+      <created>1652031524955</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1652031524955</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Rearrange code.">
+      <created>1652032518993</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1652032518993</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Refactor to place results in files.">
+      <created>1652036590163</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1652036590163</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Fix request parsing." />
+    <MESSAGE value="Implement planned merge strategy.&#10;&#10;Note: this is proving less effective than expected.&#10;Specifically, I cannot programmatically select the&#10;number of sources. I think I will need to re-evaluate&#10;my strategy." />
+    <MESSAGE value="Flatten the records by into one for each satellite." />
+    <MESSAGE value="Implement branch in the akka stream." />
+    <MESSAGE value="Clean up the naming." />
+    <MESSAGE value="Implement collision file grouping." />
+    <MESSAGE value="Rearrange code." />
+    <MESSAGE value="Refactor to place results in files." />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor to place results in files." />
+  </component>
+  <component name="XDebuggerManager">
+    <watches-manager>
+      <configuration name="Application">
+        <watch expression="rawBytes.utf8String.parseJson" language="Scala" />
+      </configuration>
+    </watches-manager>
+  </component>
+</project>

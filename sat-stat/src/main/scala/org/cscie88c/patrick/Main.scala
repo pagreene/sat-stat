@@ -22,6 +22,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import java.nio.file.{Files, Paths}
 
+// CASE CLASSES //
+
 final case class Coordinate(latitude: Float, longitude: Float)
 final case class TelescopePosition(id: String, coordinate: Coordinate)
 final case class SatellitePosition(id: String, altitude: Float, coordinate: Coordinate)
@@ -56,6 +58,10 @@ object CollisionFile {
     } yield CollisionFile(t, lat, long, alt)
 }
 
+
+// JSON CONVERSION //
+
+
 object MyJsonProtocol extends DefaultJsonProtocol {
   implicit val coordinateFormat: RootJsonFormat[Coordinate] =
     jsonFormat2(Coordinate)
@@ -70,12 +76,15 @@ object MyJsonProtocol extends DefaultJsonProtocol {
 import MyJsonProtocol._
 
 object Main extends App {
-  println("Hello! Let's get some stats on some sats.")
+
+  // CONSTANTS //
+
+  val ATMOSPHERIC_HEIGHT = 12e3 // meters
 
   implicit val actorSystem: ActorSystem[Nothing] =
     ActorSystem[Nothing](Behaviors.empty, "sat-stat")
 
-  import actorSystem.executionContext
+  // FUNCTIONS //
 
   private def extractEntityData(response: HttpResponse): Source[ApiResponse, _] =
     response match {
@@ -104,21 +113,36 @@ object Main extends App {
       .flatMapConcat(extractEntityData)
   }
 
-  val printMeasurementSink: Sink[Measurement, Future[Done]] = Sink.foreach(
-    (measure: Measurement) =>
-      println(
-          s"Measurement: ${measure.telescope_id}, " +
-            s"${measure.satellite_id}, " +
-            s"(${measure.altitude}, " +
-            s"${measure.coordinate.latitude}, " +
-            s"${measure.coordinate.longitude})"
-      )
-  )
+  // SOURCES //
 
-  val printCrashedSatellite: Sink[SatellitePosition, Future[Done]] = Sink.foreach(
-    (satellite: SatellitePosition) =>
-      println(s"CRASH of ${satellite.id}: ${satellite.coordinate}")
-  )
+  val merger: Source[ApiResponse, NotUsed] =
+    Source
+      .combine(
+        formApiSource(0),
+        formApiSource(1),
+        formApiSource(2),
+        formApiSource(3),
+        formApiSource(4),
+        formApiSource(5),
+        formApiSource(6),
+        formApiSource(7),
+        formApiSource(8),
+        formApiSource(9),
+        formApiSource(10),
+        formApiSource(11),
+        formApiSource(12),
+        formApiSource(13),
+        formApiSource(14),
+        formApiSource(15),
+        formApiSource(16),
+        formApiSource(17),
+        formApiSource(18),
+        formApiSource(19),
+      )(
+        Merge(_)
+      )
+
+  // FLOWS //
 
   val separateMeasurements: Flow[ApiResponse, List[Measurement], NotUsed] = Flow[ApiResponse].map(
     (resp: ApiResponse) => for {
@@ -132,33 +156,6 @@ object Main extends App {
     )
   )
 
-  val merger = Source.combine(
-    formApiSource(0),
-    formApiSource(1),
-    formApiSource(2),
-    formApiSource(3),
-    formApiSource(4),
-    formApiSource(5),
-    formApiSource(6),
-    formApiSource(7),
-    formApiSource(8),
-    formApiSource(9),
-    formApiSource(10),
-    formApiSource(11),
-    formApiSource(12),
-    formApiSource(13),
-    formApiSource(14),
-    formApiSource(15),
-    formApiSource(16),
-    formApiSource(17),
-    formApiSource(18),
-    formApiSource(19),
-  )(
-    Merge(_)
-  )
-
-  val ATMOSPHERIC_HEIGHT = 12e3
-
   val findCrashingSatellites: Flow[Measurement, SatellitePosition, NotUsed] =
     Flow[Measurement]
       .filter(_.altitude < ATMOSPHERIC_HEIGHT)
@@ -166,10 +163,6 @@ object Main extends App {
         (m: Measurement) =>
           SatellitePosition(m.satellite_id, m.altitude, m.coordinate)
       )
-
-  val crashSink: Sink[Measurement, NotUsed] =
-    findCrashingSatellites
-      .to(printCrashedSatellite)
 
   val separateFiles: Flow[Measurement, List[(CollisionFile, String)], NotUsed] =
     Flow[Measurement].map(
@@ -181,28 +174,53 @@ object Main extends App {
       )
     )
 
-  val groupFlow = Flow[Measurement]
+  val collisionGroupFlow: Flow[Measurement, (CollisionFile, String), NotUsed] = Flow[Measurement]
     .via(separateFiles)
     .mapConcat(identity)
 
-  val fileSink: Sink[(CollisionFile, String), Future[Done]] = Sink
-   .foreach(
-     (tup: (CollisionFile, String)) => {
-       Files.write(Paths.get(tup._1.fileName), tup._2.getBytes(StandardCharsets.UTF_8))
+  // SINKS //
 
-     }
-   )
+  val rawMeasurementSink: Sink[Measurement, Future[Done]] = Sink.foreach(
+    (measure: Measurement) =>
+      println(
+        s"Measurement: ${measure.telescope_id}, " +
+          s"${measure.satellite_id}, " +
+          s"(${measure.altitude}, " +
+          s"${measure.coordinate.latitude}, " +
+          s"${measure.coordinate.longitude})"
+      )
+  )
 
-  val groupSink = groupFlow.to(fileSink)
+  val crashSink: Sink[SatellitePosition, Future[Done]] = Sink.foreach(
+    (satellite: SatellitePosition) =>
+      println(s"CRASH of ${satellite.id}: ${satellite.coordinate}")
+  )
 
-  val measurementSource =
-    merger
-      .via(separateMeasurements)
-      .mapConcat(identity)
+  val collisionSink: Sink[(CollisionFile, String), Future[Done]] = Sink
+    .foreach(
+      (tup: (CollisionFile, String)) => {
+        Files.write(Paths.get(tup._1.fileName), tup._2.getBytes(StandardCharsets.UTF_8))
 
-  measurementSource
-    .alsoTo(crashSink)
-    .alsoTo(groupSink)
-    .to(printMeasurementSink).run()
+      }
+    )
 
+  // STREAMS //
+
+  val crashStream: Sink[Measurement, NotUsed] =
+    findCrashingSatellites
+      .to(crashSink)
+
+  val collisionStream: Sink[Measurement, NotUsed] =
+    collisionGroupFlow
+      .to(collisionSink)
+
+  // PIPELINE //
+
+  merger
+    .via(separateMeasurements)
+    .mapConcat(identity)
+    .alsoTo(crashStream)
+    .alsoTo(collisionStream)
+    .to(rawMeasurementSink)
+    .run()
 }

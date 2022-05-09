@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82cf11f1-250b-46a9-86ce-47260767342a" name="Changes" comment="Refactor to place results in files.">
+    <list default="true" id="82cf11f1-250b-46a9-86ce-47260767342a" name="Changes" comment="Add doc strings.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/scala/org/cscie88c/patrick/Main.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/org/cscie88c/patrick/Main.scala" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -164,7 +166,14 @@
       <option name="project" value="LOCAL" />
       <updated>1652036590163</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Add missing latitude">
+      <created>1652040721613</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1652040721613</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -187,7 +196,9 @@
     <MESSAGE value="Implement collision file grouping." />
     <MESSAGE value="Rearrange code." />
     <MESSAGE value="Refactor to place results in files." />
-    <option name="LAST_COMMIT_MESSAGE" value="Refactor to place results in files." />
+    <MESSAGE value="Add missing latitude" />
+    <MESSAGE value="Add doc strings." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add doc strings." />
   </component>
   <component name="XDebuggerManager">
     <watches-manager>

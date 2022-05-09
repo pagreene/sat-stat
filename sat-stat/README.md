@@ -13,7 +13,12 @@ Each of these outputs is a CSV.
 Setup
 -----
 
-(This is kinda klugey I know) To set up the project, open it in your preferred IDE, in particular
+Before running, be sure to create the following directory structure under `sat-stat`:
+
+- results/
+  - collisions/
+
+Next, (and this is klugey I know) To set up the project, open it in your preferred IDE, in particular
 IntelliJ's Idea. I have included the .idea folder, so if you select `sat-stat` as your root folder,
 many of the settings I use should be picked up.
 

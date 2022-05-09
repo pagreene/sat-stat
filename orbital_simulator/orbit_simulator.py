@@ -172,6 +172,12 @@ class SatelliteSimulation:
             self.latitude = latitude * 180 / np.pi
             self.longitude = longitude * 180 / np.pi
 
+            # Randomly de-orbit satellites, to demonstrate analysis pipeline's
+            # capabilities.
+            if np.random.choice([True, False], p=[0.1, 0.9]):
+                self.height = R_EARTH + 11e3  # just put it right below the atmo.
+
+            # Check if the satellite is dead.
             if self.height < R_EARTH:
                 print(f"{self.id} died at {t}: ({self.latitude}, {self.longitude})!")
                 self._running = False
